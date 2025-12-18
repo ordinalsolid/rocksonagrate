@@ -16,7 +16,7 @@
             --grid-height: 600px;
         }
 
-        /* Mobile Adjustment: Width 210px & Centering */
+        /* Mobile Adjustment: Width 210px & True Centering */
         @media (max-width: 600px) {
             :root {
                 --grid-width: 210px;
@@ -24,20 +24,41 @@
             }
             
             body {
-                /* Change flex alignment to center for mobile */
-                justify-content: center !important; 
-                padding-top: 0 !important;
+                /* Use full height and flex column */
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                /* Remove fixed padding used for desktop */
+                padding-top: 20px !important; 
+                padding-bottom: 20px !important;
+                justify-content: flex-start !important;
+            }
+
+            h1 {
+                /* Header stays at top, no absolute positioning needed */
+                position: static !important;
+                margin-bottom: 0 !important;
+                flex-shrink: 0;
             }
 
             #grate-container {
-                /* Push up slightly from the true center */
-                margin-bottom: 15vh; 
+                /* MARGIN AUTO is the key: it eats up all available vertical space evenly */
+                margin-top: auto !important;
+                margin-bottom: auto !important;
+                flex-shrink: 0;
             }
-            
-            h1 {
-                position: absolute;
-                top: 20px;
-                width: 100%;
+
+            /* Make footer elements part of the flow on mobile */
+            .hint {
+                position: static !important;
+                margin-bottom: 10px;
+                flex-shrink: 0;
+            }
+
+            #controls {
+                position: static !important;
+                bottom: auto !important;
+                flex-shrink: 0;
             }
         }
 
@@ -185,12 +206,12 @@
             opacity: 0.8;
             pointer-events: none;
             user-select: none;
-            font-family: monospace; /* Optional styling choice */
+            font-family: monospace;
         }
 
         .hint {
             position: absolute;
-            bottom: 85px; /* Moved up slightly to clear the new footer text */
+            bottom: 85px; 
             color: #666;
             font-size: 0.9rem;
             pointer-events: none;
@@ -233,11 +254,11 @@
         <div id="grid"></div>
     </div>
 
-    <div class="hint">Arrange the rocks on the grate.</div>
+    <div class="hint">Arrange rocks on the grate.</div>
 
     <div id="controls">
         <button onclick="resetSystem()">Clear Grate</button>
-        <div class="brand-text">ordinal solid 2025</div>
+        <div class="brand-text">ordinal solid 2026</div>
     </div>
 
     <div id="win-overlay">
@@ -297,7 +318,6 @@
             rock.classList.add('rock');
             rock.classList.add('stuck'); 
             
-            // Size = cellWidth + 1 for visual overlap
             const size = cellWidth + 1; 
             rock.style.width = `${size}px`;
             rock.style.height = `${size}px`;
@@ -335,7 +355,7 @@
 
             if (forcePerfect || r < 0.083) { 
                 type = 'perfect';
-                size = cellWidth + 1; // Tighter fit
+                size = cellWidth + 1; 
                 rock.style.backgroundColor = '#6e665e'; 
             } 
             else if (r < 0.13) {
