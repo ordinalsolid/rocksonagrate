@@ -37,7 +37,8 @@
 
             h1 {
                 position: static !important;
-                margin-bottom: 0 !important;
+                /* Added space below title so it doesn't touch the grid */
+                margin-bottom: 30px !important; 
                 flex-shrink: 0;
             }
 
@@ -50,6 +51,8 @@
 
             .hint {
                 position: static !important;
+                /* Added space above the hint so it doesn't touch the grid */
+                margin-top: 30px !important;
                 margin-bottom: 15px;
                 flex-shrink: 0;
             }
