@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rocks in the Grate</title>
+    <style>
+        :root {
+            --bg-color: #e6e4e1;
+            --grid-color: #4a4a4a;
+            --cell-color: #000000;
+            --rock-base: #8c857b;
+            
+            /* Default Size (Desktop/Tablet) */
+            --grid-width: 300px;
+            --grid-height: 600px;
+        }
+
+        /* Mobile Adjustment: Width 210px & Centering */
+        @media (max-width: 600px) {
+            :root {
+                --grid-width: 210px;
+                --grid-height: 420px;
+            }
+            
+            body {
+                /* Change flex alignment to center for mobile */
+                justify-content: center !important; 
+                padding-top: 0 !important;
+            }
+
+            #grate-container {
+                /* Push up slightly from the true center */
+                margin-bottom: 15vh; 
+            }
+            
+            h1 {
+                position: absolute;
+                top: 20px;
+                width: 100%;
+            }
+        }
+
+        body {
+            background-color: var(--bg-color);
+            /* Sidewalk Grid Pattern */
+            background-image: 
+                linear-gradient(#ccc 2px, transparent 2px), 
+                linear-gradient(90deg, #ccc 2px, transparent 2px);
+            background-size: 300px 300px; 
+            background-position: center top;
+            
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Default top align for desktop */
+            padding-top: 40px; 
+            box-sizing: border-box;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            transition: background-color 1s ease;
+        }
+
+        h1 {
+            color: #555;
+            font-weight: 300;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.2rem;
+            z-index: 10;
+            pointer-events: none;
+            user-select: none;
+            text-align: center;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+        }
+
+        #grate-container {
+            width: var(--grid-width);
+            height: var(--grid-height);
+            background-color: var(--grid-color);
+            padding: 4px;
+            border-radius: 4px;
+            position: relative;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2); 
+            z-index: 5;
+            flex-shrink: 0; 
+        }
+
+        #grid {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            grid-template-rows: repeat(10, 1fr); 
+            grid-template-columns: repeat(15, 1fr);
+            gap: 2px;
+            background-color: var(--grid-color);
+        }
+
+        .cell {
+            background-color: var(--cell-color);
+            position: relative;
+        }
+
+        .cell.filled {
+            background-color: #000000; 
+        }
+
+        .rock {
+            position: absolute;
+            background-color: var(--rock-base);
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.3);
+            cursor: grab;
+            z-index: 50;
+            touch-action: none;
+            transition: transform 0.1s, opacity 0.3s;
+        }
+
+        .rock:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        .rock.falling-through {
+            transition: all 0.6s ease-in;
+            transform: scale(0.2) !important;
+            opacity: 0;
+        }
+
+        .rock.disposing {
+            transition: all 0.4s ease-out;
+            transform: scale(0.8) !important;
+            opacity: 0;
+        }
+
+        .rock.rolling {
+            z-index: 20; 
+        }
+
+        .rock.stuck {
+            transition: all 0.2s ease-out;
+            z-index: 6; 
+            box-shadow: none;
+            pointer-events: none; 
+        }
+        
+        .rock.resting-on-grate {
+            z-index: 60; 
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #999;
+            padding: 10px 20px;
+            color: #333;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 20px;
+            outline: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        button:hover {
+            background: white;
+        }
+
+        .brand-text {
+            font-size: 0.65rem;
+            color: #888;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            pointer-events: none;
+            user-select: none;
+            font-family: monospace; /* Optional styling choice */
+        }
+
+        .hint {
+            position: absolute;
+            bottom: 85px; /* Moved up slightly to clear the new footer text */
+            color: #666;
+            font-size: 0.9rem;
+            pointer-events: none;
+            user-select: none;
+            text-align: center;
+            width: 100%;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+            font-weight: 500;
+        }
+
+        #win-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .win-text {
+            color: white;
+            font-size: 1.5rem;
+            opacity: 0;
+            position: absolute;
+            transition: opacity 0.5s ease;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Rocks in the Grate</h1>
+
+    <div id="grate-container">
+        <div id="grid"></div>
+    </div>
+
+    <div class="hint">Drag rocks to the edge to discard them.</div>
+
+    <div id="controls">
+        <button onclick="resetSystem()">Clear Grid</button>
+        <div class="brand-text">ordinal solid</div>
+    </div>
+
+    <div id="win-overlay">
+        <div id="text1" class="win-text">you win</div>
+        <div id="text2" class="win-text">but can you do it again?</div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const container = document.getElementById('grate-container');
+        const rows = 10;
+        const cols = 15;
+        const totalCells = rows * cols;
+        const cells = [];
+        let isWinning = false;
+        
+        // Dynamic Metrics
+        let gridRect, cellWidth;
+        
+        function updateMetrics() {
+            gridRect = container.getBoundingClientRect();
+            // 15 cols, 14 gaps of 2px = 28px lost total width
+            cellWidth = (gridRect.width - 28) / 15; 
+        }
+        
+        window.addEventListener('resize', updateMetrics);
+
+        // Setup Grid
+        function initGrid() {
+            grid.innerHTML = '';
+            cells.length = 0; 
+            for (let i = 0; i < rows * cols; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                grid.appendChild(cell);
+                cells.push(cell);
+            }
+            updateMetrics();
+        }
+        initGrid();
+
+        // ---------------------------------------------------------
+        // ROCK GENERATOR
+        // ---------------------------------------------------------
+        
+        function createOrganicShape() {
+            const r = () => Math.floor(30 + Math.random() * 40) + '%'; 
+            return `${r()} ${r()} ${r()} ${r()} / ${r()} ${r()} ${r()} ${r()}`;
+        }
+
+        function spawnPreFilledRock() {
+            updateMetrics();
+            const randomIndex = Math.floor(Math.random() * totalCells);
+            const targetCell = cells[randomIndex];
+            const rock = document.createElement('div');
+            rock.classList.add('rock');
+            rock.classList.add('stuck'); 
+            
+            // Size = cellWidth + 1 for visual overlap
+            const size = cellWidth + 1; 
+            rock.style.width = `${size}px`;
+            rock.style.height = `${size}px`;
+            rock.style.backgroundColor = '#6e665e'; 
+            rock.style.borderRadius = createOrganicShape();
+            rock.dataset.type = 'perfect';
+            rock.dataset.size = size;
+
+            const colW = gridRect.width / cols;
+            const rowH = gridRect.height / rows;
+            const col = randomIndex % cols;
+            const row = Math.floor(randomIndex / cols);
+
+            const targetX = gridRect.left + (col * colW) + (colW/2) - (size/2);
+            const targetY = gridRect.top + (row * rowH) + (rowH/2) - (size/2);
+
+            rock.style.left = `${targetX}px`;
+            rock.style.top = `${targetY}px`;
+
+            targetCell.classList.add('filled');
+            document.body.appendChild(rock);
+        }
+
+        function spawnRock(forcePerfect = false) {
+            if (isWinning) return; 
+
+            updateMetrics();
+
+            const rock = document.createElement('div');
+            rock.classList.add('rock');
+            
+            // PROBABILITIES
+            const r = Math.random();
+            let size, type;
+
+            if (forcePerfect || r < 0.083) { 
+                type = 'perfect';
+                size = cellWidth + 1; // Tighter fit
+                rock.style.backgroundColor = '#6e665e'; 
+            } 
+            else if (r < 0.13) {
+                type = 'clutter'; 
+                size = cellWidth * (2.0 + Math.random() * 1.0);
+            } 
+            else {
+                if (Math.random() < 0.5) {
+                    type = 'small';
+                    size = cellWidth * (0.7 + Math.random() * 0.2);
+                } else {
+                    type = 'clutter';
+                    size = cellWidth * (1.1 + Math.random() * 0.25);
+                }
+            }
+
+            rock.style.width = `${size}px`;
+            rock.style.height = `${size}px`;
+            rock.style.borderRadius = createOrganicShape();
+            rock.dataset.type = type;
+            rock.dataset.size = size;
+
+            // Positioning 
+            const side = Math.random() < 0.5 ? 'left' : 'right';
+            const margin = 10; 
+            
+            let startX;
+            if(side === 'left') {
+                const availableSpace = gridRect.left;
+                let maxW = availableSpace - size - margin;
+                if (maxW < 0) maxW = 0;
+                startX = Math.random() * maxW;
+                if (startX < margin) startX = margin; 
+            }
+            else {
+                const availableSpace = window.innerWidth - gridRect.right;
+                let maxW = availableSpace - size - margin;
+                if (maxW < 0) maxW = 0;
+                startX = gridRect.right + margin + Math.random() * maxW;
+                if (startX > window.innerWidth - size - margin) startX = window.innerWidth - size - margin;
+            }
+
+            const startY = Math.random() * (window.innerHeight - 200) + 60;
+
+            rock.style.left = `${startX}px`;
+            rock.style.top = `${startY}px`;
+
+            document.body.appendChild(rock);
+            makeDraggable(rock);
+        }
+
+        function initialSpawn() {
+            spawnRock(true); 
+            for(let i=0; i<7; i++) spawnRock(false);
+        }
+
+        // Replenish rocks
+        setInterval(() => {
+            if (isWinning) return;
+
+            const activeRocks = Array.from(document.querySelectorAll('.rock:not(.stuck):not(.rolling):not(.disposing)'));
+            const totalActive = activeRocks.length;
+
+            if (totalActive < 8) {
+                spawnRock();
+                return;
+            }
+
+            let rocksInGutter = 0;
+            activeRocks.forEach(rock => {
+                const rRect = rock.getBoundingClientRect();
+                const centerX = rRect.left + rRect.width / 2;
+                if (centerX < gridRect.left || centerX > gridRect.right) {
+                    rocksInGutter++;
+                }
+            });
+
+            if (rocksInGutter === 0 && totalActive < 25) {
+                spawnRock();
+            }
+
+        }, 1000);
+
+        // ---------------------------------------------------------
+        // DRAG & DROP
+        // ---------------------------------------------------------
+
+        function makeDraggable(el) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+            let velocityX = 0, velocityY = 0;
+            let lastX = 0, lastY = 0;
+            let physicsInterval;
+
+            const onDown = (e) => {
+                if (el.classList.contains('rolling') || el.classList.contains('falling-through') || el.classList.contains('stuck') || el.classList.contains('disposing') || isWinning) return;
+                
+                isDragging = true;
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                startX = clientX;
+                startY = clientY;
+                const rect = el.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                lastX = clientX;
+                lastY = clientY;
+                
+                el.style.zIndex = 100; 
+                el.classList.remove('resting-on-grate'); 
+                clearInterval(physicsInterval);
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault(); 
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                el.style.left = `${initialLeft + dx}px`;
+                el.style.top = `${initialTop + dy}px`;
+                velocityX = clientX - lastX;
+                velocityY = clientY - lastY;
+                lastX = clientX;
+                lastY = clientY;
+            };
+
+            const onUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                const rect = el.getBoundingClientRect();
+                const rockCenterX = rect.left + rect.width / 2;
+                const rockCenterY = rect.top + rect.height / 2;
+                
+                updateMetrics(); 
+
+                // 1. CHECK DISPOSAL
+                const disposalThreshold = 30; 
+                if (rect.left < disposalThreshold || rect.right > window.innerWidth - disposalThreshold) {
+                    el.classList.add('disposing');
+                    setTimeout(() => el.remove(), 400);
+                    return;
+                }
+
+                // 2. CHECK GRID
+                const isOverGrid = (
+                    rockCenterX > gridRect.left && 
+                    rockCenterX < gridRect.right && 
+                    rockCenterY > gridRect.top && 
+                    rockCenterY < gridRect.bottom
+                );
+
+                if (isOverGrid) {
+                    const type = el.dataset.type;
+
+                    if (type === 'small') {
+                        el.classList.add('falling-through');
+                        setTimeout(() => el.remove(), 600);
+                    } 
+                    else if (type === 'perfect') {
+                        const colW = gridRect.width / cols;
+                        const rowH = gridRect.height / rows;
+                        const relativeX = rockCenterX - gridRect.left;
+                        const relativeY = rockCenterY - gridRect.top;
+                        const col = Math.floor(relativeX / colW);
+                        const row = Math.floor(relativeY / rowH);
+                        const index = row * cols + col;
+
+                        if (cells[index] && !cells[index].classList.contains('filled')) {
+                            const targetX = gridRect.left + (col * colW) + (colW/2) - (rect.width/2);
+                            const targetY = gridRect.top + (row * rowH) + (rowH/2) - (rect.height/2);
+                            el.style.left = `${targetX}px`;
+                            el.style.top = `${targetY}px`;
+                            el.style.zIndex = '';
+                            
+                            el.classList.add('stuck');
+                            cells[index].classList.add('filled');
+                            checkWinCondition();
+                        } else {
+                            el.classList.add('resting-on-grate');
+                            el.style.zIndex = ''; 
+                        }
+                    } 
+                    else {
+                        el.classList.add('resting-on-grate');
+                        el.style.zIndex = ''; 
+                    }
+                } else {
+                    el.style.zIndex = ''; 
+                    startGravity(el, velocityX, velocityY);
+                }
+            };
+
+            el.addEventListener('pointerdown', onDown);
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+        }
+
+        function startGravity(el, vx, vy) {
+            el.classList.add('rolling');
+            let posX = parseFloat(el.style.left);
+            let posY = parseFloat(el.style.top);
+            let velX = vx * 0.5; 
+            let velY = vy * 0.5;
+            const gravity = 0.8;
+            const friction = 0.98;
+            const bounce = -0.5;
+            const floorY = window.innerHeight - parseFloat(el.dataset.size) - 5; 
+
+            function update() {
+                if (!document.body.contains(el)) return;
+                velY += gravity;
+                velX *= friction;
+                posX += velX;
+                posY += velY;
+
+                if (posY > floorY) {
+                    posY = floorY;
+                    velY *= bounce;
+                    velX *= 0.9; 
+                    if (Math.abs(velY) < 1 && Math.abs(velX) < 1) {
+                        el.style.top = `${posY}px`;
+                        el.style.left = `${posX}px`;
+                        el.classList.remove('rolling'); 
+                        makeDraggable(el); 
+                        
+                        setTimeout(() => {
+                            if(document.body.contains(el) && !el.classList.contains('stuck') && !isDragging) {
+                                el.classList.add('disposing');
+                                setTimeout(() => el.remove(), 1000);
+                            }
+                        }, 5000);
+
+                        return; 
+                    }
+                }
+
+                if (posX < 0) { posX = 0; velX *= -0.8; }
+                if (posX > window.innerWidth - parseFloat(el.dataset.size)) {
+                    posX = window.innerWidth - parseFloat(el.dataset.size);
+                    velX *= -0.8;
+                }
+
+                el.style.left = `${posX}px`;
+                el.style.top = `${posY}px`;
+                requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        function checkWinCondition() {
+            const filledCount = document.querySelectorAll('.cell.filled').length;
+            if (filledCount === totalCells) {
+                triggerWinSequence();
+            }
+        }
+
+        function triggerWinSequence() {
+            isWinning = true;
+            document.body.style.backgroundColor = "#c92a2a";
+            document.body.style.backgroundImage = "none";
+
+            const t1 = document.getElementById('text1');
+            const t2 = document.getElementById('text2');
+
+            setTimeout(() => { t1.style.opacity = 1; }, 500);
+            setTimeout(() => { t1.style.opacity = 0; }, 2500);
+            setTimeout(() => { t2.style.opacity = 1; }, 3000);
+            setTimeout(() => {
+                t2.style.opacity = 0;
+                document.body.style.backgroundColor = ""; 
+                document.body.style.backgroundImage = "";
+                resetSystem();
+            }, 5500);
+        }
+
+        function resetSystem() {
+            document.querySelectorAll('.rock').forEach(r => r.remove());
+            cells.forEach(c => c.classList.remove('filled'));
+            isWinning = false;
+            
+            spawnPreFilledRock();
+            initialSpawn();
+        }
+
+        setTimeout(resetSystem, 100);
+
+    </script>
+</body>
+</html>
